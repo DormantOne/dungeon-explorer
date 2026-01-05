@@ -11,7 +11,7 @@ This repo is a **simple dungeon-explorer environment** built to demonstrate an A
 
 The goal is straightforward: **survive long enough to reach the exit**.
 
-This is intentionally a **toy** example of a “self-owned business” pattern: an agent can pursue a goal, **request human help when needed**, and (in later versions) **rate/compensate** human assistance. The scaffolding here is meant to be reusable for real-world tasks.
+This is intentionally a **toy** example of a “self-owned business” pattern: an agent can pursue a goal, **request human help when needed**, and **rate/compensate** human assistance. The scaffolding here is meant to be reusable for real-world tasks.
 
 ---
 
