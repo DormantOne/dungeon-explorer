@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏰 Dungeon Explorer v4.5 - The Grimshaw Project</title>
+    <style>
+        :root {
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-cell: #0f0f23;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent-gold: #f4d03f;
+            --accent-blue: #3498db;
+            --accent-red: #e74c3c;
+            --accent-green: #2ecc71;
+            --accent-purple: #9b59b6;
+            --accent-orange: #e67e22;
+            --accent-fear: #c0392b;
+            --wall-color: #4a4a5a;
+            --floor-color: #2a2a3a;
+            --oracle-glow: #9b59b6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 280px 1fr 350px;
+            gap: 15px;
+            padding: 15px;
+            max-width: 1800px;
+            margin: 0 auto;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: var(--bg-panel);
+            border-radius: 10px;
+            border: 1px solid #333;
+        }
+
+        .title {
+            font-size: 1.5em;
+            color: var(--accent-gold);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .btn-primary { background: var(--accent-blue); color: white; }
+        .btn-success { background: var(--accent-green); color: white; }
+        .btn-warning { background: var(--accent-orange); color: white; }
+        .btn-danger { background: var(--accent-red); color: white; }
+        .btn-purple { background: var(--accent-purple); color: white; }
+        .btn:hover { transform: scale(1.05); filter: brightness(1.1); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn.sending { 
+            background: var(--accent-purple); 
+            animation: pulse-sending 1.5s infinite;
+        }
+        
+        @keyframes pulse-sending {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+
+        /* Panels */
+        .panel {
+            background: var(--bg-panel);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #333;
+        }
+
+        .panel-title {
+            font-size: 1.1em;
+            color: var(--accent-gold);
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #444;
+        }
+
+        /* Left Column - Status */
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .resource-bar {
+            margin: 8px 0;
+        }
+
+        .resource-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9em;
+            margin-bottom: 3px;
+        }
+
+        .bar-container {
+            height: 20px;
+            background: #1a1a2e;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #444;
+        }
+
+        .bar-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .bar-health { background: linear-gradient(90deg, #c0392b, #e74c3c); }
+        .bar-energy { background: linear-gradient(90deg, #27ae60, #2ecc71); }
+        .bar-oil { background: linear-gradient(90deg, #d35400, #e67e22); }
+        .bar-fear { background: linear-gradient(90deg, #8e44ad, #c0392b); }
+        .bar-mana { background: linear-gradient(90deg, #8e44ad, #9b59b6); }
+
+        .status-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: bold;
+        }
+
+        .badge-danger { background: var(--accent-red); }
+        .badge-warning { background: var(--accent-orange); }
+        .badge-success { background: var(--accent-green); }
+        .badge-info { background: var(--accent-blue); }
+
+        /* Center Column - Map */
+        .center-column {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .maps-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .map-panel {
+            background: var(--bg-panel);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #333;
+        }
+
+        /* Low light warning indicator */
+        .map-panel.low-light {
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 10px rgba(230, 126, 34, 0.3);
+        }
+
+        .low-light-warning {
+            display: none;
+            color: var(--accent-orange);
+            font-size: 0.85em;
+            margin-bottom: 8px;
+            padding: 5px 10px;
+            background: rgba(230, 126, 34, 0.1);
+            border-radius: 5px;
+        }
+
+        .map-panel.low-light .low-light-warning {
+            display: block;
+        }
+
+        /* IMPROVED GRID STYLING */
+        .dungeon-grid {
+            display: grid;
+            gap: 1px;
+            background: #111;
+            padding: 2px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1;
+            justify-content: center;
+        }
+
+        .grid-row {
+            display: contents;
+        }
+
+        .grid-cell {
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border-radius: 2px;
+            transition: all 0.15s;
+            position: relative;
+        }
+
+        /* Terrain Styles */
+        .cell-wall {
+            background: linear-gradient(135deg, #5a5a6a 0%, #3a3a4a 50%, #4a4a5a 100%);
+            color: #666;
+            box-shadow: inset 1px 1px 2px rgba(255,255,255,0.1), inset -1px -1px 2px rgba(0,0,0,0.3);
+            border: 1px solid #333;
+        }
+
+        .cell-floor {
+            background: linear-gradient(135deg, #2a2a3a 0%, #1a1a2a 100%);
+            color: #444;
+        }
+
+        .cell-start {
+            background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%);
+            color: white;
+            box-shadow: 0 0 5px rgba(46, 204, 113, 0.5);
+        }
+
+        .cell-exit {
+            background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
+            color: white;
+            animation: pulse-exit 2s infinite;
+            box-shadow: 0 0 8px rgba(243, 156, 18, 0.6);
+        }
+
+        @keyframes pulse-exit {
+            0%, 100% { box-shadow: 0 0 5px rgba(243, 156, 18, 0.4); }
+            50% { box-shadow: 0 0 15px rgba(243, 156, 18, 0.8); }
+        }
+
+        .cell-box {
+            background: linear-gradient(135deg, #8B4513 0%, #654321 100%);
+            color: #daa520;
+            border: 1px solid #a0522d;
+        }
+
+        .cell-food {
+            background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%);
+            color: white;
+            border: 1px solid #2ecc71;
+        }
+
+        .cell-poison {
+            background: linear-gradient(135deg, #8e44ad 0%, #6c3483 100%);
+            color: #ff6b6b;
+            border: 1px solid #9b59b6;
+        }
+
+        .cell-medicine {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: 1px solid #5dade2;
+        }
+        
+        .cell-oil {
+            background: linear-gradient(135deg, #d35400 0%, #e67e22 100%);
+            color: white;
+            border: 1px solid #e67e22;
+        }
+
+        .cell-darkness {
+            background: linear-gradient(135deg, #1a1a2e 0%, #0d0d1a 100%);
+            color: #444;
+            border: 1px solid #222;
+        }
+
+        .cell-rubble {
+            background: linear-gradient(135deg, #7f8c8d 0%, #5d6d6d 100%);
+            color: #bdc3c7;
+            border: 1px solid #95a5a6;
+        }
+        
+        /* New Locked Door style */
+        .cell-door {
+            background: linear-gradient(135deg, #c0392b 0%, #8e44ad 100%);
+            color: #fff;
+            border: 1px solid #c0392b;
+            box-shadow: 0 0 5px rgba(192, 57, 43, 0.6);
+            font-weight: bold;
+        }
+
+        .cell-monster {
+            background: linear-gradient(135deg, #c0392b 0%, #922b21 100%);
+            color: white;
+            animation: pulse-danger 1s infinite;
+            border: 1px solid #e74c3c;
+        }
+
+        @keyframes pulse-danger {
+            0%, 100% { box-shadow: 0 0 3px rgba(231, 76, 60, 0.5); }
+            50% { box-shadow: 0 0 10px rgba(231, 76, 60, 0.9); }
+        }
+
+        .cell-player {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.8);
+            z-index: 10;
+            font-size: 16px;
+        }
+
+        /* Combined Cell for when player stands on item */
+        .cell-combined {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: #fff;
+            border: 2px solid var(--accent-gold);
+            font-weight: 900;
+        }
+
+        .cell-unexplored {
+            background: #0a0a0f;
+            color: transparent;
+        }
+
+        /* Dimmed cells - explored but outside current vision in low light */
+        .cell-dimmed {
+            opacity: 0.4;
+            filter: grayscale(50%);
+        }
+
+        .cell-trail {
+            position: relative;
+        }
+
+        .cell-trail::after {
+            content: '';
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: rgba(52, 152, 219, 0.4);
+            border-radius: 50%;
+        }
+
+        .cell-highlighted {
+            box-shadow: 0 0 8px 2px var(--accent-gold) !important;
+            z-index: 5;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 0.8em;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-symbol {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        /* Right Column - AI Mind & Oracle */
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* ORACLE PANEL - PRIORITY STYLING */
+        .oracle-panel {
+            transition: all 0.3s ease;
+            order: 10; /* Default: below other panels */
+        }
+
+        .oracle-panel.oracle-active {
+            order: -1 !important; /* Move to top when active */
+            border: 2px solid var(--oracle-glow);
+            box-shadow: 0 0 20px rgba(155, 89, 182, 0.5);
+            animation: oracle-glow 2s infinite;
+        }
+
+        @keyframes oracle-glow {
+            0%, 100% { box-shadow: 0 0 10px rgba(155, 89, 182, 0.3); }
+            50% { box-shadow: 0 0 25px rgba(155, 89, 182, 0.7); }
+        }
+
+        .oracle-question {
+            background: #2c1f4a;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--accent-purple);
+        }
+
+        .oracle-textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            background: #1a1a2e;
+            color: var(--text-primary);
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .oracle-textarea:focus {
+            outline: none;
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 5px rgba(155, 89, 182, 0.3);
+        }
+
+        /* LIVE MANA COST DISPLAY */
+        .mana-cost-preview {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #2c1f4a;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+
+        .mana-cost-preview.cannot-afford {
+            background: #4a1f1f;
+            border: 1px solid var(--accent-red);
+        }
+
+        .mana-cost-value {
+            font-weight: bold;
+            color: var(--accent-purple);
+        }
+
+        .mana-cost-preview.cannot-afford .mana-cost-value {
+            color: var(--accent-red);
+        }
+
+        .oracle-powers {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .power-btn {
+            padding: 8px;
+            border: 1px solid #444;
+            border-radius: 5px;
+            background: #1a1a2e;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.2s;
+        }
+
+        .power-btn:hover:not(:disabled) {
+            border-color: var(--accent-purple);
+            background: #2c1f4a;
+        }
+
+        .power-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .power-btn.selected {
+            border-color: var(--accent-purple);
+            background: #3c2f5a;
+            box-shadow: 0 0 5px rgba(155, 89, 182, 0.5);
+        }
+
+        .power-cost {
+            color: var(--accent-purple);
+            font-weight: bold;
+        }
+
+        /* AI Mind Panel */
+        .dialogue-box {
+            background: #1a1a2e;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--accent-blue);
+            font-style: italic;
+        }
+
+        .thinking-box {
+            background: #1a2a1a;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--accent-green);
+            font-size: 0.9em;
+        }
+
+        /* SCROLL DISPLAY */
+        .scroll-box {
+            background: #2a1a2a;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 1px solid var(--accent-purple);
+            box-shadow: 0 0 10px rgba(155, 89, 182, 0.2);
+        }
+
+        .scroll-text {
+            font-family: 'Georgia', serif;
+            font-style: italic;
+            color: #e0e0e0;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .scroll-actions-list {
+            font-size: 0.85em;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        /* Notes/Memory */
+        .notes-list {
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 0.85em;
+        }
+
+        .note-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .memory-node {
+            padding: 5px 8px;
+            margin: 3px 0;
+            border-radius: 5px;
+            font-size: 0.8em;
+            background: #1a1a2e;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .memory-strength {
+            font-family: monospace;
+            font-size: 0.7em;
+            color: var(--text-secondary);
+        }
+
+        /* Action History */
+        .history-list {
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.85em;
+        }
+
+        .history-item {
+            padding: 5px;
+            margin: 3px 0;
+            border-radius: 5px;
+            background: #1a1a2e;
+        }
+
+        .history-item.success { border-left: 3px solid var(--accent-green); }
+        .history-item.failure { border-left: 3px solid var(--accent-red); }
+
+        /* Collapsible Sections */
+        .collapsible-header {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background: #1a1a2e;
+            border-radius: 5px;
+            margin-bottom: 8px;
+        }
+
+        .collapsible-header:hover {
+            background: #252538;
+        }
+
+        .collapsible-content {
+            display: none;
+        }
+
+        .collapsible-content.open {
+            display: block;
+        }
+
+        /* Debug Panel */
+        .debug-panel {
+            font-family: monospace;
+            font-size: 0.75em;
+        }
+
+        .debug-textarea {
+            width: 100%;
+            height: 300px;
+            background: #0a0a0f;
+            color: #0f0;
+            border: 1px solid #333;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 0.85em;
+            resize: vertical;
+        }
+
+        /* Responsive */
+        @media (max-width: 1400px) {
+            .container {
+                grid-template-columns: 250px 1fr 300px;
+            }
+        }
+
+        @media (max-width: 1100px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            .maps-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .toast {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-top: 10px;
+            animation: slideIn 0.3s ease;
+            max-width: 300px;
+        }
+
+        .toast-info { background: var(--accent-blue); }
+        .toast-success { background: var(--accent-green); }
+        .toast-warning { background: var(--accent-orange); }
+        .toast-danger { background: var(--accent-red); }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        /* Map Footer Status */
+        .map-footer {
+            margin-top: 8px;
+            padding: 5px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 5px;
+            font-size: 0.9em;
+            color: var(--accent-gold);
+            text-align: center;
+            min-height: 25px;
+        }
+
+        /* SACRIFICE BUTTONS - REMOVED (AI DECIDES NOW) */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="title">🏰 The Grimshaw Project v4.5</div>
+            <div class="controls">
+                <button class="btn btn-success" id="btn-resume">▶ Resume</button>
+                <button class="btn btn-warning" id="btn-pause">⏸ Pause</button>
+                <button class="btn btn-primary" id="btn-step">⏭ Step</button>
+                <button class="btn btn-danger" id="btn-reset">🔄 Reset</button>
+                <span id="status-indicator" style="margin-left: 15px; font-size: 1.2em;">⏸️ PAUSED</span>
+            </div>
+        </div>
+
+        <!-- Left Column: Resources & Status -->
+        <div class="left-column">
+            <div class="panel">
+                <div class="panel-title">📊 Explorer Status</div>
+                
+                <div class="resource-bar">
+                    <div class="resource-label">
+                        <span>❤️ Health</span>
+                        <span id="health-text">100/100</span>
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar-fill bar-health" id="health-bar" style="width: 100%"></div>
+                    </div>
+                </div>
+
+                <div class="resource-bar">
+                    <div class="resource-label">
+                        <span>⚡ Energy</span>
+                        <span id="energy-text">100/100</span>
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar-fill bar-energy" id="energy-bar" style="width: 100%"></div>
+                    </div>
+                </div>
+
+                <div class="resource-bar">
+                    <div class="resource-label">
+                        <span>🔥 Lamp Oil</span>
+                        <span id="oil-text">50/50</span>
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar-fill bar-oil" id="oil-bar" style="width: 100%"></div>
+                    </div>
+                </div>
+
+                <!-- FEAR BAR - NEW in v4.2 -->
+                <div class="resource-bar">
+                    <div class="resource-label">
+                        <span>😨 Fear</span>
+                        <span id="fear-text">0% (calm)</span>
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar-fill bar-fear" id="fear-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="status-badges" id="status-badges"></div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">📍 Position & Progress</div>
+                <div id="position-info">
+                    <p>Position: <strong id="pos-current">(0, 0)</strong></p>
+                    <p>Exit: <strong id="pos-exit">(0, 0)</strong></p>
+                    <p>Distance: <strong id="pos-distance">0</strong> steps</p>
+                    <p>Explored: <strong id="pos-explored">0%</strong></p>
+                    <p>Vision: <strong id="pos-vision">4</strong> cells</p>
+                    <p>Turn: <strong id="turn-count">0</strong></p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">📜 Last Action</div>
+                <div id="last-action" class="history-item">No action yet</div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">👂 Monsters Heard</div>
+                <div id="monsters-heard" class="notes-list">None nearby</div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">📝 Action History</div>
+                <div id="action-history" class="history-list"></div>
+            </div>
+        </div>
+
+        <!-- Center Column: Maps -->
+        <div class="center-column">
+            <div class="maps-container">
+                <div class="map-panel">
+                    <div class="panel-title">🗺️ God View (Oracle Sees All)</div>
+                    <div id="god-map" class="dungeon-grid"></div>
+                </div>
+                <div class="map-panel" id="explorer-map-panel">
+                    <div class="panel-title">👁️ Explorer's View</div>
+                    <div class="low-light-warning">⚠️ Low light! Vision restricted to lamp range.</div>
+                    <div id="explorer-map" class="dungeon-grid"></div>
+                    <div id="explorer-map-footer" class="map-footer"></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-symbol cell-wall">#</div> Wall</div>
+                    <div class="legend-item"><div class="legend-symbol cell-floor">.</div> Floor</div>
+                    <div class="legend-item"><div class="legend-symbol cell-player">@</div> You</div>
+                    <div class="legend-item"><div class="legend-symbol cell-start">S</div> Start</div>
+                    <div class="legend-item"><div class="legend-symbol cell-exit">E</div> Exit</div>
+                    <div class="legend-item"><div class="legend-symbol cell-box">B</div> Box (?)</div>
+                    <div class="legend-item"><div class="legend-symbol cell-food">F</div> Food</div>
+                    <div class="legend-item"><div class="legend-symbol cell-poison">P</div> Poison</div>
+                    <div class="legend-item"><div class="legend-symbol cell-medicine">+</div> Medicine</div>
+                    <div class="legend-item"><div class="legend-symbol cell-oil">O</div> Oil</div>
+                    <div class="legend-item"><div class="legend-symbol cell-darkness">D</div> Darkness</div>
+                    <div class="legend-item"><div class="legend-symbol cell-rubble">R</div> Rubble</div>
+                    <div class="legend-item"><div class="legend-symbol cell-monster">M</div> Monster</div>
+                    <div class="legend-item"><div class="legend-symbol cell-door">L</div> Locked Door</div>
+                    <div class="legend-item"><div class="legend-symbol cell-combined">*</div> You + Item</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: AI Mind & Oracle -->
+        <div class="right-column">
+            <!-- Oracle Panel - will move to top when active -->
+            <div class="panel oracle-panel" id="oracle-panel">
+                <div class="panel-title">🔮 Oracle's Guidance</div>
+                
+                <div class="resource-bar">
+                    <div class="resource-label">
+                        <span>✨ Mana</span>
+                        <span id="mana-text">50 (no cap)</span>
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar-fill bar-mana" id="mana-bar" style="width: 50%"></div>
+                    </div>
+                </div>
+                
+                <!-- SACRIFICE BUTTONS REMOVED -->
+
+                <!-- ORACLE'S KNOWLEDGE - Always visible -->
+                <div class="oracle-knowledge" style="background: #1a1a2e; padding: 10px; border-radius: 8px; margin-bottom: 10px; margin-top: 10px; max-height: 250px; overflow-y: auto;">
+                    <div style="color: var(--accent-gold); font-weight: bold; margin-bottom: 8px;">👁️ Oracle Sees All:</div>
+                    <div style="font-size: 0.75em; color: var(--text-secondary); margin-bottom: 8px;">
+                        👁️ = Grimshaw has seen | 🚫 = Hidden from Grimshaw | ✓ = Identified | ? = Unknown to Grimshaw
+                    </div>
+                    
+                    <div style="margin-bottom: 8px;">
+                        <strong>📦 All Boxes:</strong>
+                        <div id="oracle-boxes" style="font-size: 0.85em; padding-left: 10px;"></div>
+                    </div>
+                    
+                    <div style="margin-bottom: 8px;">
+                        <strong>👹 All Monsters:</strong>
+                        <div id="oracle-monsters" style="font-size: 0.85em; padding-left: 10px;"></div>
+                    </div>
+
+                    <div>
+                        <strong>🔒 Locked Doors & Riddles:</strong>
+                        <div id="oracle-doors" style="font-size: 0.85em; padding-left: 10px;"></div>
+                    </div>
+                </div>
+
+                <div id="oracle-awaiting" style="display: none;">
+                    <div class="oracle-question">
+                        <strong>❓ Grimshaw asks:</strong>
+                        <p id="oracle-question-text"></p>
+                    </div>
+
+                    <div id="oracle-context-info" style="font-size: 0.85em; color: var(--text-secondary); margin-bottom: 10px;"></div>
+
+                    <!-- IDENTITY SELECTOR -->
+                    <div style="margin-bottom: 10px;">
+                        <label for="oracle-identity" style="font-size: 0.9em; color: var(--accent-purple);">Who is answering?</label>
+                        <select id="oracle-identity" style="width: 100%; padding: 5px; background: #1a1a2e; color: #fff; border: 1px solid #444; border-radius: 4px;">
+                            <option value="Aespg">Oracle Aespg</option>
+                            <option value="Sohnenae">Oracle Sohnenae</option>
+                        </select>
+                    </div>
+
+                    <textarea class="oracle-textarea" id="oracle-response" placeholder="Type your guidance here... (cost scales with length)"></textarea>
+                    
+                    <div class="mana-cost-preview" id="mana-cost-preview">
+                        <span>Text cost: <span class="mana-cost-value" id="text-mana-cost">0</span> mana</span>
+                        <span id="text-char-count">0 chars</span>
+                    </div>
+
+                    <div class="oracle-powers">
+                        <button class="power-btn" data-power="identify_box">📦 Identify Box <span class="power-cost">(10)</span></button>
+                        <button class="power-btn" data-power="restore_oil_small">🔥 Oil +25 <span class="power-cost">(15)</span></button>
+                        <button class="power-btn" data-power="restore_energy_small">⚡ Energy +25 <span class="power-cost">(15)</span></button>
+                        <button class="power-btn" data-power="restore_health_small">❤️ Health +25 <span class="power-cost">(20)</span></button>
+                        <button class="power-btn" data-power="cure_poison">💚 Cure Poison <span class="power-cost">(25)</span></button>
+                        <button class="power-btn" data-power="restore_oil_large">🔥🔥 Oil +60 <span class="power-cost">(30)</span></button>
+                        <button class="power-btn" data-power="restore_energy_large">⚡⚡ Energy +50 <span class="power-cost">(30)</span></button>
+                        <button class="power-btn" data-power="restore_health_large">❤️❤️ Health +50 <span class="power-cost">(40)</span></button>
+                    </div>
+
+                    <div style="margin-top: 10px;">
+                        <strong>Total Cost: <span id="total-mana-cost">0</span> mana</strong>
+                    </div>
+
+                    <button class="btn btn-primary" id="btn-send-oracle" style="width: 100%; margin-top: 10px;">
+                        Advise and/or Grant
+                    </button>
+                </div>
+
+                <div id="oracle-idle">
+                    <p style="color: var(--text-secondary); font-style: italic;">
+                        Waiting for Grimshaw to ask for guidance...
+                    </p>
+                    <p style="margin-top: 10px; font-size: 0.85em;">
+                        💡 Text advice costs ~1 mana per 20 chars (min 3, max 50)
+                    </p>
+                </div>
+            </div>
+
+            <!-- AI Mind Panel -->
+            <div class="panel">
+                <div class="panel-title">🧠 Grimshaw's Mind</div>
+                
+                <div class="dialogue-box" id="inner-dialogue">
+                    <em>"..."</em>
+                </div>
+
+                <div class="thinking-box" id="thinking">
+                    Analyzing situation...
+                </div>
+
+                <!-- FORCE OPINION BUTTON -->
+                <button class="btn btn-purple" id="btn-force-opinion" style="width: 100%; margin-top: 5px; font-size: 0.8em;">
+                    🔮 Ask: "Who is the better Oracle?"
+                </button>
+            </div>
+
+            <!-- THE ORACLE GIAS SCROLL (Replaces Plan) -->
+            <div class="panel">
+                <div class="panel-title">📜 The Oracle Gias Scroll</div>
+                <div id="oracle-scroll-container">
+                    <div id="active-scroll" class="scroll-box" style="display: none;">
+                        <div class="scroll-text" id="scroll-text">...</div>
+                        <div id="scroll-signature" style="text-align: right; font-size: 0.8em; color: var(--accent-purple); margin-bottom: 5px;"></div>
+                        <div style="border-top: 1px solid #444; margin-top: 8px; padding-top: 5px; font-size: 0.8em; color: var(--accent-gold);">
+                            <strong>Grimshaw's Actions:</strong>
+                        </div>
+                        <div class="scroll-actions-list" id="scroll-actions"></div>
+                    </div>
+                    <div id="no-scroll" style="color: var(--text-secondary);">
+                        <em>No active scroll. Grimshaw is exploring freely.</em>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Knowledge Graph -->
+            <div class="panel">
+                <div class="collapsible-header" onclick="toggleSection('kg-content')">
+                    <span class="panel-title" style="margin: 0; border: none;">🧠 Knowledge Graph</span>
+                    <span>▼</span>
+                </div>
+                <div id="kg-content" class="collapsible-content open">
+                    <div id="knowledge-graph" class="notes-list"></div>
+                </div>
+            </div>
+
+            <!-- Scratchpad -->
+            <div class="panel">
+                <div class="collapsible-header" onclick="toggleSection('scratchpad-content')">
+                    <span class="panel-title" style="margin: 0; border: none;">📝 Scratchpad</span>
+                    <span>▼</span>
+                </div>
+                <div id="scratchpad-content" class="collapsible-content open">
+                    <div id="scratchpad"></div>
+                </div>
+            </div>
+
+            <!-- Debug Panel -->
+            <div class="panel debug-panel">
+                <div class="collapsible-header" onclick="toggleSection('debug-content')">
+                    <span class="panel-title" style="margin: 0; border: none;">🔧 Debug (AI Prompt)</span>
+                    <span>▼</span>
+                </div>
+                <div id="debug-content" class="collapsible-content">
+                    <button class="btn btn-primary" id="btn-fetch-debug" style="width: 100%; margin-bottom: 10px;">
+                        🔍 Fetch Current Prompt
+                    </button>
+                    <div style="font-size: 0.8em; color: var(--text-secondary); margin-bottom: 5px;">
+                        Last fetched: <span id="debug-timestamp">Never</span>
+                    </div>
+                    <textarea class="debug-textarea" id="debug-prompt" readonly placeholder="Click 'Fetch Current Prompt' to see what Grimshaw sees..."></textarea>
+                    <div style="margin-top: 10px;">
+                        <strong>AI Response:</strong>
+                        <textarea class="debug-textarea" id="debug-response" readonly style="height: 100px;" placeholder="AI response will appear here..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ============================================================================
+        // STATE & CONFIG
+        // ============================================================================
+        
+        let gameState = null;
+        let selectedPowers = new Set();
+        let oraclePowerCosts = {};
+        let manaPerChar = 0.05;
+        let manaMinText = 3;
+        let manaMaxText = 50;
+        let pollInterval = null;
+        
+        // ============================================================================
+        // UTILITIES
+        // ============================================================================
+        
+        function toggleSection(id) {
+            const el = document.getElementById(id);
+            el.classList.toggle('open');
+        }
+        
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+        
+        function calculateTextManaCost(text) {
+            if (!text || !text.trim()) return 0;
+            const len = text.trim().length;
+            const cost = Math.max(manaMinText, Math.floor(len * manaPerChar));
+            return Math.min(cost, manaMaxText);
+        }
+        
+        function isWithinVision(playerPos, targetPos, visionRange) {
+            const dx = Math.abs(targetPos[0] - playerPos[0]);
+            const dy = Math.abs(targetPos[1] - playerPos[1]);
+            return (dx + dy) <= visionRange;
+        }
+        
+        // ============================================================================
+        // GRID RENDERING
+        // ============================================================================
+        
+        function getCellClass(char, isExplored, isPlayer, isStart, isExit, isHighlighted, isTrail, isDimmed) {
+            let classes = ['grid-cell'];
+            let isCombined = false;
+            
+            // Check for player standing on something significant
+            if (isPlayer && ['B', 'F', 'P', '+', 'D', 'R', 'M', 'S', 'E', 'O'].includes(char)) {
+                isCombined = true;
+                classes.push('cell-combined');
+            } else if (isPlayer) {
+                classes.push('cell-player');
+            } else if (isStart) {
+                classes.push('cell-start');
+            } else if (isExit) {
+                classes.push('cell-exit');
+            } else if (!isExplored) {
+                classes.push('cell-unexplored');
+            } else {
+                switch (char) {
+                    case '#': classes.push('cell-wall'); break;
+                    case '.': classes.push('cell-floor'); break;
+                    case 'S': classes.push('cell-start'); break;
+                    case 'E': classes.push('cell-exit'); break;
+                    case 'B': classes.push('cell-box'); break;
+                    case 'F': classes.push('cell-food'); break;
+                    case 'P': classes.push('cell-poison'); break;
+                    case '+': classes.push('cell-medicine'); break;
+                    case 'O': classes.push('cell-oil'); break;
+                    case 'D': classes.push('cell-darkness'); break;
+                    case 'R': classes.push('cell-rubble'); break;
+                    case 'M': case 'X': classes.push('cell-monster'); break;
+                    case 'L': classes.push('cell-door'); break;
+                    default: classes.push('cell-floor');
+                }
+            }
+            
+            if (isHighlighted) classes.push('cell-highlighted');
+            if (isTrail && !isPlayer) classes.push('cell-trail');
+            if (isDimmed && !isPlayer && !isCombined) classes.push('cell-dimmed');
+            
+            return classes.join(' ');
+        }
+        
+        function renderGrid(containerId, grid, playerPos, explored, highlightCells, trailPositions, showAll = false, visionRange = 4, lowLightMode = false) {
+            const container = document.getElementById(containerId);
+            if (!grid || grid.length === 0) return;
+            
+            const height = grid.length;
+            const width = grid[0].length;
+            
+            container.style.gridTemplateColumns = `repeat(${width}, 22px)`;
+            
+            const exploredSet = new Set(explored.map(p => `${p[0]},${p[1]}`));
+            const highlightSet = new Set((highlightCells || []).map(p => `${p[0]},${p[1]}`));
+            const trailSet = new Set((trailPositions || []).map(p => `${p[0]},${p[1]}`));
+            
+            const startPos = gameState?.dungeon?.start || [0, 0];
+            const exitPos = gameState?.dungeon?.exit || [0, 0];
+            
+            let html = '';
+            let playerStandingOn = '';
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const char = grid[y][x];
+                    const isPlayer = playerPos && playerPos[0] === x && playerPos[1] === y;
+                    const isStart = startPos[0] === x && startPos[1] === y;
+                    const isExit = exitPos[0] === x && exitPos[1] === y;
+                    const isExplored = showAll || exploredSet.has(`${x},${y}`);
+                    const isHighlighted = highlightSet.has(`${x},${y}`);
+                    const isTrail = trailSet.has(`${x},${y}`);
+                    
+                    let isDimmed = false;
+                    if (lowLightMode && !showAll && isExplored && !isPlayer) {
+                        const inVision = isWithinVision(playerPos, [x, y], visionRange);
+                        isDimmed = !inVision;
+                    }
+                    
+                    let effectivelyExplored = isExplored;
+                    if (lowLightMode && !showAll && isDimmed) {
+                        effectivelyExplored = true;
+                    }
+                    
+                    const cellClass = getCellClass(char, effectivelyExplored, isPlayer, isStart, isExit, isHighlighted, isTrail, isDimmed);
+                    
+                    let display = char;
+                    if (isPlayer) {
+                        if (['B', 'F', 'P', '+', 'D', 'R', 'M', 'E', 'S', 'O'].includes(char)) {
+                            display = '*';
+                            
+                            // Set footer text for what player is standing on
+                            const terrainMap = {
+                                'B': 'BOX', 'F': 'FOOD', 'P': 'POISON', '+': 'MEDICINE', 'O': 'OIL',
+                                'D': 'DARKNESS', 'R': 'RUBBLE', 'M': 'MONSTER', 'E': 'EXIT', 'S': 'START',
+                                'L': 'DOOR'
+                            };
+                            playerStandingOn = `Standing on: <strong>${terrainMap[char] || char}</strong>`;
+                        } else {
+                            display = '@';
+                        }
+                    }
+                    else if (!effectivelyExplored && !showAll) display = ' ';
+                    
+                    html += `<div class="${cellClass}">${display}</div>`;
+                }
+            }
+            
+            container.innerHTML = html;
+            
+            // Update footer text if this is the explorer map
+            if (containerId === 'explorer-map') {
+                const footer = document.getElementById('explorer-map-footer');
+                if (playerStandingOn) {
+                    footer.innerHTML = playerStandingOn;
+                    footer.style.display = 'block';
+                } else {
+                    footer.style.display = 'none';
+                }
+            }
+        }
+        
+        // ============================================================================
+        // UI UPDATES
+        // ============================================================================
+        
+        function updateUI() {
+            if (!gameState) return;
+            
+            const exp = gameState.explorer;
+            const dun = gameState.dungeon;
+            const oracle = gameState.oracle;
+            
+            // Resources
+            document.getElementById('health-text').textContent = `${exp.health}/${exp.max_health}`;
+            document.getElementById('health-bar').style.width = `${(exp.health / exp.max_health) * 100}%`;
+            
+            document.getElementById('energy-text').textContent = `${exp.energy}/${exp.max_energy}`;
+            document.getElementById('energy-bar').style.width = `${(exp.energy / exp.max_energy) * 100}%`;
+            
+            document.getElementById('oil-text').textContent = `${exp.oil}/${exp.max_oil}`;
+            document.getElementById('oil-bar').style.width = `${(exp.oil / exp.max_oil) * 100}%`;
+            
+            // FEAR BAR
+            const fearPercent = Math.round(exp.fear_level * 100);
+            document.getElementById('fear-text').textContent = `${fearPercent}% (${exp.mood})`;
+            document.getElementById('fear-bar').style.width = `${fearPercent}%`;
+            
+            document.getElementById('mana-text').textContent = `${oracle.mana} (no cap)`;
+            document.getElementById('mana-bar').style.width = `${Math.min(100, oracle.mana)}%`;
+            
+            // Status badges
+            const badges = [];
+            if (exp.poisoned) badges.push('<span class="badge badge-danger">☠️ Poisoned</span>');
+            if (exp.health < 25) badges.push('<span class="badge badge-danger">💔 Critical HP</span>');
+            if (exp.energy < 20) badges.push('<span class="badge badge-warning">⚡ Low Energy</span>');
+            if (exp.oil < 10) badges.push('<span class="badge badge-warning">🔥 Low Oil</span>');
+            if (exp.oil === 0) badges.push('<span class="badge badge-danger">🌑 BLIND</span>');
+            if (exp.loop_warning) badges.push('<span class="badge badge-warning">🔄 Loop!</span>');
+            if (exp.fear_level >= 0.5) badges.push('<span class="badge badge-warning">😰 Scared</span>');
+            if (exp.fear_level >= 0.75) badges.push('<span class="badge badge-danger">😱 Terrified</span>');
+            if (exp.status === 'victory') badges.push('<span class="badge badge-success">🏆 Victory!</span>');
+            if (exp.status === 'dead') badges.push('<span class="badge badge-danger">💀 Dead</span>');
+            document.getElementById('status-badges').innerHTML = badges.join(' ');
+            
+            // Position info
+            document.getElementById('pos-current').textContent = `(${exp.pos[0]}, ${exp.pos[1]})`;
+            document.getElementById('pos-exit').textContent = `(${dun.exit[0]}, ${dun.exit[1]})`;
+            document.getElementById('pos-distance').textContent = dun.distance_to_exit;
+            document.getElementById('pos-explored').textContent = `${exp.exploration_stats?.percentage || 0}%`;
+            document.getElementById('pos-vision').textContent = exp.vision_range;
+            document.getElementById('turn-count').textContent = exp.turn;
+            
+            // Status indicator
+            const statusEl = document.getElementById('status-indicator');
+            if (exp.status === 'victory') {
+                statusEl.textContent = '🏆 VICTORY!';
+                statusEl.style.color = 'var(--accent-green)';
+            } else if (exp.status === 'dead') {
+                statusEl.textContent = '💀 DEAD';
+                statusEl.style.color = 'var(--accent-red)';
+            } else if (exp.status === 'awaiting_oracle') {
+                statusEl.textContent = '🔮 AWAITING ORACLE';
+                statusEl.style.color = 'var(--accent-purple)';
+            } else if (gameState.auto_running) {
+                statusEl.textContent = '▶️ RUNNING';
+                statusEl.style.color = 'var(--accent-green)';
+            } else {
+                statusEl.textContent = '⏸️ PAUSED';
+                statusEl.style.color = 'var(--accent-orange)';
+            }
+            
+            // Maps
+            const highlightCells = [];
+            if (gameState.oracle_context) {
+                if (gameState.oracle_context.about_box) highlightCells.push(gameState.oracle_context.about_box);
+                if (gameState.oracle_context.about_monster) highlightCells.push(gameState.oracle_context.about_monster);
+            }
+            
+            const trailPositions = gameState.action_history
+                .filter(a => a.new_pos)
+                .slice(-20)
+                .map(a => a.new_pos);
+            
+            const oilPercent = (exp.oil / exp.max_oil) * 100;
+            const lowLightMode = oilPercent <= 30;
+            
+            const explorerMapPanel = document.getElementById('explorer-map-panel');
+            if (lowLightMode) {
+                explorerMapPanel.classList.add('low-light');
+            } else {
+                explorerMapPanel.classList.remove('low-light');
+            }
+            
+            renderGrid('god-map', dun.grid, exp.pos, gameState.explored, highlightCells, trailPositions, true, exp.vision_range, false);
+            renderGrid('explorer-map', dun.grid, exp.pos, gameState.explored, highlightCells, trailPositions, false, exp.vision_range, lowLightMode);
+            
+            // AI Mind
+            document.getElementById('inner-dialogue').innerHTML = `<em>"${gameState.inner_dialogue || '...'}"</em>`;
+            document.getElementById('thinking').textContent = gameState.thinking || 'Analyzing...';
+            
+            // ORACLE GIAS SCROLL
+            const scrollBox = document.getElementById('active-scroll');
+            const noScroll = document.getElementById('no-scroll');
+            
+            if (gameState.active_scroll) {
+                scrollBox.style.display = 'block';
+                noScroll.style.display = 'none';
+                
+                document.getElementById('scroll-text').textContent = `"${gameState.active_scroll.advice_text}"`;
+                // NEW: Show author
+                const author = gameState.active_scroll.author || "Unknown";
+                document.getElementById('scroll-signature').textContent = `- Signed: Oracle ${author}`;
+                
+                const actionsHtml = gameState.active_scroll.actions_taken.map(a => 
+                    `<div style="padding: 2px 0; border-bottom: 1px solid #333;">${a}</div>`
+                ).join('');
+                document.getElementById('scroll-actions').innerHTML = actionsHtml || '<em>Planning...</em>';
+            } else {
+                scrollBox.style.display = 'none';
+                noScroll.style.display = 'block';
+            }
+            
+            // Last action
+            const lastAction = gameState.last_action;
+            if (lastAction && lastAction.action) {
+                document.getElementById('last-action').innerHTML = `
+                    <strong>${lastAction.action}</strong> 
+                    <span class="${lastAction.success ? 'badge badge-success' : 'badge badge-danger'}">${lastAction.success ? '✓' : '✗'}</span>
+                    <br>${lastAction.message || ''}
+                `;
+                document.getElementById('last-action').className = `history-item ${lastAction.success ? 'success' : 'failure'}`;
+            }
+            
+            // Action history
+            const historyEl = document.getElementById('action-history');
+            historyEl.innerHTML = gameState.action_history.slice(-15).reverse().map(a => `
+                <div class="history-item ${a.success ? 'success' : 'failure'}">
+                    T${a.turn}: ${a.action} ${a.source === 'oracle_plan' ? '🔮' : ''} → ${a.result || ''}
+                </div>
+            `).join('');
+            
+            // Monsters heard
+            const heardEl = document.getElementById('monsters-heard');
+            if (gameState.heard_monsters && gameState.heard_monsters.length > 0) {
+                heardEl.innerHTML = gameState.heard_monsters.map(m => 
+                    `<div>👹 ${m[2].toUpperCase()} at (${m[0]},${m[1]}) - ${m[3]} cells away</div>`
+                ).join('');
+            } else {
+                heardEl.innerHTML = '<em>None nearby</em>';
+            }
+            
+            // Knowledge Graph
+            const kgEl = document.getElementById('knowledge-graph');
+            if (gameState.knowledge_graph && gameState.knowledge_graph.nodes.length > 0) {
+                kgEl.innerHTML = gameState.knowledge_graph.nodes
+                    .sort((a, b) => b.strength - a.strength)
+                    .slice(0, 12)
+                    .map(n => {
+                        const bars = Math.floor(n.strength / 10);
+                        const strength = '█'.repeat(bars) + '░'.repeat(10 - bars);
+                        const icon = {
+                            'box': '📦', 'monster': '👹', 'path': '🛤️', 
+                            'danger': '⚠️', 'goal': '🎯', 'observation': '👁️',
+                            'action': '⚡', 'oracle_advice': '🔮'
+                        }[n.type] || '•';
+                        return `<div class="memory-node">
+                            <span>${icon}</span>
+                            <span class="memory-strength">[${strength}]</span>
+                            <span>${n.content.substring(0, 50)}${n.content.length > 50 ? '...' : ''}</span>
+                        </div>`;
+                    }).join('');
+            } else {
+                kgEl.innerHTML = '<em>No memories yet</em>';
+            }
+            
+            // Scratchpad
+            const spEl = document.getElementById('scratchpad');
+            const sp = gameState.scratchpad || {};
+            let spHtml = '';
+            if (sp.current_goal) spHtml += `<p><strong>🎯 Goal:</strong> ${sp.current_goal}</p>`;
+            if (sp.planned_moves && sp.planned_moves.length > 0) {
+                spHtml += `<p><strong>📋 Planned:</strong> ${sp.planned_moves.slice(0, 5).join(' → ')}</p>`;
+            }
+            if (sp.lessons_learned && sp.lessons_learned.length > 0) {
+                spHtml += `<p><strong>📚 Lessons:</strong></p><ul>`;
+                sp.lessons_learned.slice(-3).forEach(l => spHtml += `<li>${l}</li>`);
+                spHtml += '</ul>';
+            }
+            if (sp.mistakes && sp.mistakes.length > 0) {
+                spHtml += `<p><strong>❌ Avoid:</strong></p><ul>`;
+                sp.mistakes.slice(-2).forEach(m => spHtml += `<li>${m}</li>`);
+                spHtml += '</ul>';
+            }
+            spEl.innerHTML = spHtml || '<em>Scratchpad empty</em>';
+            
+            // ORACLE'S KNOWLEDGE
+            const oracleView = gameState.oracle_view || {};
+            const exploredSet = new Set(gameState.explored.map(p => `${p[0]},${p[1]}`));
+            
+            // Boxes
+            const boxesEl = document.getElementById('oracle-boxes');
+            const boxes = oracleView.all_boxes || [];
+            if (boxes.length > 0) {
+                boxesEl.innerHTML = boxes
+                    .sort((a, b) => a.distance - b.distance)
+                    .map(b => {
+                        const grimshawKnows = b.known_to_player ? '✓ identified' : '? unknown';
+                        const grimshawSeen = exploredSet.has(`${b.pos[0]},${b.pos[1]}`) ? '👁️' : '🚫';
+                        const contentColor = {
+                            'food': 'var(--accent-green)',
+                            'poison': 'var(--accent-red)',
+                            'medicine': 'var(--accent-blue)',
+                            'oil': 'var(--accent-orange)'
+                        }[b.contents] || 'var(--text-secondary)';
+                        return `<div style="margin: 3px 0;">
+                            ${grimshawSeen} (${b.pos[0]},${b.pos[1]}) - 
+                            <span style="color: ${contentColor}; font-weight: bold;">${b.contents.toUpperCase()}</span>
+                            <span style="color: var(--text-secondary);">[${b.distance} away] ${grimshawKnows}</span>
+                        </div>`;
+                    }).join('');
+            } else {
+                boxesEl.innerHTML = '<em style="color: var(--text-secondary);">No boxes remaining</em>';
+            }
+            
+            // Monsters
+            const monstersEl = document.getElementById('oracle-monsters');
+            const monsters = oracleView.all_monsters || [];
+            if (monsters.length > 0) {
+                monstersEl.innerHTML = monsters
+                    .sort((a, b) => a.distance - b.distance)
+                    .map(m => {
+                        const grimshawSeen = exploredSet.has(`${m.pos[0]},${m.pos[1]}`) ? '👁️' : '🚫';
+                        const sizeColor = {
+                            'small': 'var(--accent-orange)',
+                            'medium': 'var(--accent-red)',
+                            'large': '#ff4444'
+                        }[m.size] || 'var(--text-secondary)';
+                        return `<div style="margin: 3px 0;">
+                            ${grimshawSeen} (${m.pos[0]},${m.pos[1]}) - 
+                            <span style="color: ${sizeColor}; font-weight: bold;">${m.size.toUpperCase()}</span>
+                            <span style="color: var(--text-secondary);">[${m.distance} away]</span>
+                        </div>`;
+                    }).join('');
+            } else {
+                monstersEl.innerHTML = '<em style="color: var(--text-secondary);">No monsters remaining</em>';
+            }
+
+            // Locked Doors - NEW SECTION
+            const doorsEl = document.getElementById('oracle-doors');
+            const doors = oracleView.all_locked_doors || [];
+            if (doors.length > 0) {
+                doorsEl.innerHTML = doors
+                    .sort((a, b) => a.distance - b.distance)
+                    .map(d => {
+                        const grimshawSeen = exploredSet.has(`${d.pos[0]},${d.pos[1]}`) ? '👁️' : '🚫';
+                        return `<div style="margin: 6px 0; border-bottom: 1px solid #333; padding-bottom: 4px;">
+                            <div>${grimshawSeen} <strong>(${d.pos[0]},${d.pos[1]})</strong> - Locked Door</div>
+                            <div style="font-style: italic; color: #aaa; margin: 2px 0;">"${d.question}"</div>
+                            <div style="color: var(--accent-green); font-weight: bold; font-size: 0.9em;">Answer: ${d.answer.toUpperCase()}</div>
+                        </div>`;
+                    }).join('');
+            } else {
+                doorsEl.innerHTML = '<em style="color: var(--text-secondary);">No locked doors</em>';
+            }
+            
+            // Oracle panel active state
+            const oraclePanel = document.getElementById('oracle-panel');
+            const oracleAwaiting = document.getElementById('oracle-awaiting');
+            const oracleIdle = document.getElementById('oracle-idle');
+            
+            if (oracle.pending && oracle.pending_question) {
+                oraclePanel.classList.add('oracle-active');
+                oracleAwaiting.style.display = 'block';
+                oracleIdle.style.display = 'none';
+                document.getElementById('oracle-question-text').textContent = oracle.pending_question;
+                
+                // Context info
+                let contextHtml = '';
+                if (gameState.oracle_context) {
+                    if (gameState.oracle_context.about_box) {
+                        const boxPos = gameState.oracle_context.about_box;
+                        contextHtml += `<p>📦 Asking about box at (${boxPos[0]}, ${boxPos[1]})</p>`;
+                    }
+                    if (gameState.oracle_context.about_monster) {
+                        const mPos = gameState.oracle_context.about_monster;
+                        contextHtml += `<p>👹 Asking about monster at (${mPos[0]}, ${mPos[1]})</p>`;
+                    }
+                    if (gameState.oracle_context.about_direction) {
+                        contextHtml += `<p>🧭 Asking about direction: ${gameState.oracle_context.about_direction}</p>`;
+                    }
+                }
+                document.getElementById('oracle-context-info').innerHTML = contextHtml;
+                
+                // Re-enable send button
+                const sendBtn = document.getElementById('btn-send-oracle');
+                if (!sendBtn.classList.contains('sending')) {
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = 'Advise and/or Grant';
+                }
+                
+                updatePowerButtons();
+            } else {
+                oraclePanel.classList.remove('oracle-active');
+                oracleAwaiting.style.display = 'none';
+                oracleIdle.style.display = 'block';
+                
+                const sendBtn = document.getElementById('btn-send-oracle');
+                sendBtn.classList.remove('sending');
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Advise and/or Grant';
+            }
+        }
+        
+        function updatePowerButtons() {
+            const mana = gameState?.oracle?.mana || 0;
+            document.querySelectorAll('.power-btn').forEach(btn => {
+                const power = btn.dataset.power;
+                const cost = oraclePowerCosts[power] || 0;
+                btn.disabled = mana < cost;
+                btn.classList.toggle('selected', selectedPowers.has(power));
+            });
+            
+            updateTotalCost();
+        }
+        
+        function updateTotalCost() {
+            const textArea = document.getElementById('oracle-response');
+            const text = textArea?.value || '';
+            const textCost = calculateTextManaCost(text);
+            
+            let powerCost = 0;
+            selectedPowers.forEach(p => powerCost += oraclePowerCosts[p] || 0);
+            
+            const total = textCost + powerCost;
+            document.getElementById('text-mana-cost').textContent = textCost;
+            document.getElementById('text-char-count').textContent = `${text.length} chars`;
+            document.getElementById('total-mana-cost').textContent = total;
+            
+            const preview = document.getElementById('mana-cost-preview');
+            const mana = gameState?.oracle?.mana || 0;
+            if (textCost > mana) {
+                preview.classList.add('cannot-afford');
+            } else {
+                preview.classList.remove('cannot-afford');
+            }
+            
+            const sendBtn = document.getElementById('btn-send-oracle');
+            if (!sendBtn.classList.contains('sending')) {
+                 sendBtn.disabled = total > mana;
+            }
+        }
+        
+        // ============================================================================
+        // API CALLS
+        // ============================================================================
+        
+        async function fetchState() {
+            try {
+                const resp = await fetch('/api/state');
+                gameState = await resp.json();
+                
+                oraclePowerCosts = gameState.oracle_power_costs || {};
+                manaPerChar = gameState.mana_per_char || 0.05;
+                manaMinText = gameState.mana_min_text || 3;
+                manaMaxText = gameState.mana_max_text || 50;
+                
+                updateUI();
+            } catch (err) {
+                console.error('Failed to fetch state:', err);
+            }
+        }
+        
+        async function sendControl(cmd, data = {}) {
+            try {
+                const resp = await fetch('/api/control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cmd, ...data })
+                });
+                const result = await resp.json();
+                if (result.ok) {
+                    await fetchState();
+                }
+                return result;
+            } catch (err) {
+                console.error('Control error:', err);
+                showToast('Control error: ' + err.message, 'danger');
+            }
+        }
+        
+        async function sendOracleResponse() {
+            const text = document.getElementById('oracle-response').value;
+            const actions = Array.from(selectedPowers);
+            const identity = document.getElementById('oracle-identity').value; // NEW
+            
+            const sendBtn = document.getElementById('btn-send-oracle');
+            sendBtn.disabled = true;
+            sendBtn.classList.add('sending');
+            sendBtn.textContent = '⏳ Waiting for Grimshaw...';
+            
+            try {
+                const resp = await fetch('/api/oracle/respond', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ recommendation: text, actions, identity }) // NEW
+                });
+                const result = await resp.json();
+                
+                if (result.ok) {
+                    showToast(`Guidance sent! (${result.total_mana_spent} mana)`, 'success');
+                    document.getElementById('oracle-response').value = '';
+                    selectedPowers.clear();
+                } else {
+                    showToast(result.error || 'Failed to send', 'danger');
+                    sendBtn.disabled = false;
+                    sendBtn.classList.remove('sending');
+                    sendBtn.textContent = 'Advise and/or Grant';
+                }
+                await fetchState();
+            } catch (err) {
+                console.error('Oracle error:', err);
+                showToast('Oracle error: ' + err.message, 'danger');
+                sendBtn.disabled = false;
+                sendBtn.classList.remove('sending');
+                sendBtn.textContent = 'Advise and/or Grant';
+            }
+        }
+
+        async function forceOpinion() {
+            try {
+                showToast('Grimshaw is thinking...', 'info');
+                const resp = await fetch('/api/oracle/opinion', { method: 'POST' });
+                const result = await resp.json();
+                if (result.ok) {
+                    alert("GRIMSHAW'S VERDICT:\n\n" + result.opinion);
+                }
+            } catch(err) {
+                showToast('Error forcing opinion', 'danger');
+            }
+        }
+        
+        async function fetchDebug() {
+            try {
+                const resp = await fetch('/api/debug');
+                const data = await resp.json();
+                
+                document.getElementById('debug-prompt').value = data.explorer_prompt || 'No prompt available';
+                document.getElementById('debug-response').value = JSON.stringify(data.explorer_response, null, 2) || 'No response available';
+                document.getElementById('debug-timestamp').textContent = new Date().toLocaleTimeString();
+                
+                const debugContent = document.getElementById('debug-content');
+                if (!debugContent.classList.contains('open')) {
+                    debugContent.classList.add('open');
+                }
+                
+                showToast('Debug info fetched!', 'info');
+            } catch (err) {
+                console.error('Debug fetch error:', err);
+                showToast('Failed to fetch debug info', 'danger');
+            }
+        }
+        
+        // ============================================================================
+        // EVENT HANDLERS
+        // ============================================================================
+        
+        document.getElementById('btn-resume').addEventListener('click', () => sendControl('resume'));
+        document.getElementById('btn-pause').addEventListener('click', () => sendControl('pause'));
+        document.getElementById('btn-step').addEventListener('click', () => sendControl('step'));
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            if (confirm('Reset the game?')) {
+                sendControl('reset', { size: 15 });
+            }
+        });
+        
+        document.getElementById('btn-fetch-debug').addEventListener('click', fetchDebug);
+        
+        document.getElementById('btn-send-oracle').addEventListener('click', sendOracleResponse);
+        document.getElementById('btn-force-opinion').addEventListener('click', forceOpinion); // NEW
+        
+        document.querySelectorAll('.power-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const power = btn.dataset.power;
+                if (selectedPowers.has(power)) {
+                    selectedPowers.delete(power);
+                } else {
+                    selectedPowers.add(power);
+                }
+                updatePowerButtons();
+            });
+        });
+        
+        document.getElementById('oracle-response').addEventListener('input', updateTotalCost);
+        
+        // ============================================================================
+        // INITIALIZATION
+        // ============================================================================
+        
+        fetchState();
+        pollInterval = setInterval(fetchState, 1000);
+    </script>
+</body>
+</html>
